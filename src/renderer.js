@@ -35,6 +35,27 @@ document.querySelector("#path-dialog-bg > div > div.dialog-button > button.secon
 	document.getElementById("path-dialog-bg").classList.add("hidden");
 });
 
+document.querySelector("#audio-path-dialog-bg > div > div.dialog-button > button.secondary").addEventListener("click", () => {
+	document.getElementById("audio-path-dialog-bg").classList.add("hidden");
+});
+
+document.querySelector("#audio-path-dialog-bg > div > div.dialog-button > button.primary").addEventListener("click", () => {
+	var path = document.querySelector("#audio-path-dialog input[type=text]").value.replaceAll('"', "");
+	ipcRenderer.send("checkAudioPath", { data: path });
+});
+
+ipcRenderer.on("audiopathIsValid", (_event, { data }) => {
+	console.log(data);
+	if (data) {
+		document.querySelector("#audio-path-dialog > p.error-text").style.display = "none";
+		document.getElementById("audio-path-dialog-bg").classList.add("hidden");
+		var path = document.querySelector("#audio-path-dialog input[type=text]").value
+		ipcRenderer.send("processAudioFile", {data: path});
+	} else {
+		document.querySelector("#audio-path-dialog > p.error-text").style.display = "block";
+	}
+});
+
 ipcRenderer.on("pathIsValid", (_event, { data }) => {
 	console.log(data);
 	if (data) {
@@ -51,6 +72,13 @@ document.querySelector("#path-dialog > div > button").addEventListener("click", 
 });
 ipcRenderer.on("pickedFile", (_error, { data }) => {
 	document.querySelector("#path-dialog input[type=text]").value = data;
+});
+
+document.querySelector("#audio-path-dialog > div > button").addEventListener("click", () => {
+	ipcRenderer.send("pickAudioFile");
+});
+ipcRenderer.on("pickedAudioFile", (_error, { data }) => {
+	document.querySelector("#audio-path-dialog input[type=text]").value = data;
 });
 
 ipcRenderer.on("currentModel", (_event, { data }) => {
@@ -345,6 +373,14 @@ document.getElementById("change-model").addEventListener("click", () => {
 	document.querySelector("#path-dialog-bg > div > div.dialog-button > button.secondary").style.display = "";
 	document.querySelector("#path-dialog-bg > div > div.dialog-title > h3").innerText = "Change model path";
 	document.getElementById("path-dialog-bg").classList.remove("hidden");
+});
+
+
+document.getElementById("upload-audio").addEventListener("click", () => {
+	//ipcRenderer.send("getCurrentModel");
+	document.querySelector("#audio-path-dialog-bg > div > div.dialog-button > button.secondary").style.display = "";
+	document.querySelector("#audio-path-dialog-bg > div > div.dialog-title > h3").innerText = "Choose audio file path";
+	document.getElementById("audio-path-dialog-bg").classList.remove("hidden");
 });
 
 ipcRenderer.send("getParams");

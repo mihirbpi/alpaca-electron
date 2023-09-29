@@ -1,0 +1,8 @@
+[1696011833] Log start
+[1696011833] Cmd: /Users/mihirborkar/Desktop/Programming/Github/alpaca-electron/bin/chat_mac_x64 -m /Users/mihirborkar/Desktop/Alpacino-13b-q4_0.bin -n -1 --ctx_size 2048 --temp 0.8 --top_k 40 --top_p 0.9 --threads 4 --batch_size 512 --repeat_last_n 64 --repeat_penalty 1.3 --seed -1 -i --interactive-first -ins -r "### Instruction:" -f /Users/mihirborkar/Desktop/Programming/Github/alpaca-electron/bin/prompts/alpaca.txt
+[1696011833] main: build = 1298 (40e07a6)
+[1696011833] main: built with Apple clang version 12.0.0 (clang-1200.0.32.29) for x86_64-apple-darwin22.6.0
+[1696011833] main: seed  = 1696011833
+[1696011833] main: llama backend init
+[1696011833] main: load the model and apply lora adapter, if any
+[1696011833] main: error: unable to load model

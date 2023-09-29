@@ -29,6 +29,7 @@
 		"@electron/remote": "^2.0.9",
 		"@npmcli/fs": "^3.1.0",
 		"duck-duck-scrape": "^2.2.3",
+		"electron-rebuild": "^3.2.9",
 		"electron-store": "^8.1.0",
 		"express": "^4.18.2",
 		"node-pty-prebuilt-multiarch": "^0.10.1-pre.5",
@@ -37,8 +38,8 @@
 	},
 	"devDependencies": {
 		"@electron/rebuild": "^3.2.10",
-		"electron": "^13.6.9",
-		"electron-builder": "^23.6.0",
+		"electron": "^26.2.4",
+		"electron-builder": "^24.6.4",
 		"electron-packager": "^17.1.1"
 	}
 }

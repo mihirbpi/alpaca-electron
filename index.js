@@ -154,6 +154,24 @@ ipcMain.on("checkPath", (_event, { data }) => {
 	}
 });
 
+ipcMain.on("checkAudioPath", (_event, { data }) => {
+	if (data) {
+		if (fs.existsSync(path.resolve(data))) {
+			win.webContents.send("audiopathIsValid", { data: true });
+		} else {
+			win.webContents.send("audiopathIsValid", { data: false });
+		}
+	} else {
+		win.webContents.send("audiopathIsValid", { data: false });
+	}
+});
+
+const aws_transc = 0;
+ipcMain.on("processAudioFile", (_event, { data }) => {
+	console.log(data)
+});
+
+
 // DUCKDUCKGO SEARCH FUNCTION
 const DDG = require("duck-duck-scrape");
 async function queryToPrompt(text) {
@@ -348,6 +366,27 @@ ipcMain.on("pickFile", () => {
 		.then((obj) => {
 			if (!obj.canceled) {
 				win.webContents.send("pickedFile", {
+					data: obj.filePaths[0]
+				});
+			}
+		});
+});
+
+ipcMain.on("pickAudioFile", () => {
+	dialog
+		.showOpenDialog(win, {
+			title: "Choose Audio File",
+			filters: [
+				{
+					name: "Audio file",
+					extensions: ["mp3"]
+				}
+			],
+			properties: ["dontAddToRecent", "openFile"]
+		})
+		.then((obj) => {
+			if (!obj.canceled) {
+				win.webContents.send("pickedAudioFile", {
 					data: obj.filePaths[0]
 				});
 			}
