@@ -120,6 +120,9 @@ const schema = {
 	},
 	supportsAVX2: {
 		default: "undefined"
+	}, 
+	lastTranscriptionJob : {
+		default: "undefined"
 	}
 };
 const store = new Store({ schema });
@@ -166,10 +169,117 @@ ipcMain.on("checkAudioPath", (_event, { data }) => {
 	}
 });
 
-const aws_transc = 0;
+const AWS = require('aws-sdk');
+AWS.config.update({region:'us-west-1'});
+
+// Create an S3 object
+const s3 = new AWS.S3();
+
+// Define your S3 bucket names where the audio is stored
+const sourceBucketName = 'js-audio-files';
+const targetBucketName = 'js-aws-transcribe-outputs';
+
+const transcribeService = new AWS.TranscribeService();
+
 ipcMain.on("processAudioFile", (_event, { data }) => {
 	console.log(data)
+
+	// Define the absolute file path of the MP3 file to upload
+	const absoluteFilePath = data; // Replace with your file path
+
+	// Extract the key (file name) from the absolute file path
+	const key = path.basename(absoluteFilePath);
+
+	// Read the MP3 file
+	const fileContent = fs.readFileSync(absoluteFilePath);
+
+	uploadFileAndSubmitTranscriptJob(sourceBucketName, key, fileContent);
 });
+
+// Function to upload the MP3 file to the source S3 bucket
+function uploadFileAndSubmitTranscriptJob(bucket, key, content) {
+  
+	// Upload the MP3 file to the source S3 bucket
+	s3.putObject(
+	  {
+		Bucket: bucket,
+		Key: key,
+		Body: content,
+	  },
+	  (err, data) => {
+		if (err) {
+		  console.error('Error uploading MP3 file:', err);
+		} else {
+		  console.log('MP3 file uploaded successfully:', data);
+		  const sourceUri = `s3://${sourceBucketName}/${key}`;
+		  const timestamp = Date.now();
+		  const transcriptionJobName = `${key}-transcription-job-${timestamp}`;
+		  submitTranscriptionJob(transcriptionJobName, sourceUri);
+		}
+	  }
+	);
+ }
+
+
+  // Function to submit the transcription job
+function submitTranscriptionJob(transcriptionJobName, sourceUri) {
+  
+	const params = {
+	  TranscriptionJobName: transcriptionJobName,
+	  LanguageCode: 'en-US', // Adjust language code as needed
+	  Media: { MediaFileUri: sourceUri },
+	  OutputBucketName: targetBucketName,
+	};
+  
+	// Start the transcription job
+	transcribeService.startTranscriptionJob(params, (err, data) => {
+	  if (err) {
+		console.error('Error starting transcription job:', err);
+	  } else {
+		console.log('Transcription job started successfully:', data);
+		store.set("lastTranscriptionJob", transcriptionJobName);
+	  }
+	});
+  }
+
+ipcMain.on("checkTranscriptionJob", () => {
+		jobName = store.get("lastTranscriptionJob");
+		transcribeService.getTranscriptionJob({ TranscriptionJobName: jobName }, (err, data) => {
+			if (err) {
+			  console.error('Error getting transcription job status:', err);
+			} else {
+			  const { TranscriptionJobStatus, TranscriptionJobName, Transcript } = data.TranscriptionJob;
+		
+			  if (TranscriptionJobStatus === 'COMPLETED') {
+				console.log(`Transcription job ${TranscriptionJobName} completed.`);
+				const transcriptFileUri = Transcript.TranscriptFileUri;
+				const transcriptBucket = transcriptFileUri.split('/')[3];
+  				const transcriptKey = transcriptFileUri.split('/').slice(4).join('/');
+
+  				s3.getObject({ Bucket: transcriptBucket, Key: transcriptKey }, (err, data) => {
+					if (err) {
+						console.error('Error fetching transcript:', err);
+					} else {
+					transc = JSON.parse(data.Body.toString()).results.transcripts[0].transcript.toString();
+					win.webContents.send("transcriptionJobStatus", { data: transc });
+					}
+
+  				});
+
+			  } else if (TranscriptionJobStatus === 'IN_PROGRESS') {
+				console.log(`Transcription job ${TranscriptionJobName} is still in progress`);
+				win.webContents.send("transcriptionJobStatus", {
+					data: "in_progress"
+				});
+			  } else if (TranscriptionJobStatus === 'FAILED' || TranscriptionJobStatus === 'CANCELED') {
+				console.error(`Transcription job ${TranscriptionJobName} failed or was canceled.`);
+				win.webContents.send("transcriptionJobStatus", {
+					data: "failed_canceled"
+				});
+			  }
+			}
+		  });
+		});
 
 
 // DUCKDUCKGO SEARCH FUNCTION

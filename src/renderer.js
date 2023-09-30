@@ -44,8 +44,16 @@ document.querySelector("#audio-path-dialog-bg > div > div.dialog-button > button
 	ipcRenderer.send("checkAudioPath", { data: path });
 });
 
+document.querySelector("#transcript-path-dialog-bg > div > div.dialog-button > button.secondary").addEventListener("click", () => {
+	document.getElementById("transcript-path-dialog-bg").classList.add("hidden");
+});
+
+document.querySelector("#transcript-path-dialog-bg > div > div.dialog-button > button.primary").addEventListener("click", () => {
+	ipcRenderer.send("checkTranscriptionJob");
+});
+
 ipcRenderer.on("audiopathIsValid", (_event, { data }) => {
-	console.log(data);
+
 	if (data) {
 		document.querySelector("#audio-path-dialog > p.error-text").style.display = "none";
 		document.getElementById("audio-path-dialog-bg").classList.add("hidden");
@@ -53,6 +61,25 @@ ipcRenderer.on("audiopathIsValid", (_event, { data }) => {
 		ipcRenderer.send("processAudioFile", {data: path});
 	} else {
 		document.querySelector("#audio-path-dialog > p.error-text").style.display = "block";
+	}
+});
+
+ipcRenderer.on("transcriptionJobStatus", (_event, { data }) => {
+
+	if (data == "in_progress") {
+		document.querySelector("#transcript-path-dialog > p.error-text").style.display = "none";
+		document.querySelector("#transcript-path-dialog > p.completed-text").style.display = "none";
+		document.querySelector("#transcript-path-dialog > p.in-progress-text").style.display = "block";
+	} else if (data == "failed_canceled" ) {
+		document.querySelector("#transcript-path-dialog > p.error-text").style.display = "block";
+		document.querySelector("#transcript-path-dialog > p.completed-text").style.display = "none";
+		document.querySelector("#transcript-path-dialog > p.in-progress-text").style.display = "none";
+	} else {
+		document.querySelector("#transcript-path-dialog > p.error-text").style.display = "none";
+		document.querySelector("#transcript-path-dialog > p.completed-text").style.display= "block";
+		document.querySelector("#transcript-path-dialog > p.in-progress-text").style.display = "none";
+		document.getElementById("input").value = "Summarize the following audio transcription: " + data
+		document.getElementById("transcript-path-dialog-bg").classList.add("hidden");
 	}
 });
 
@@ -381,6 +408,14 @@ document.getElementById("upload-audio").addEventListener("click", () => {
 	document.querySelector("#audio-path-dialog-bg > div > div.dialog-button > button.secondary").style.display = "";
 	document.querySelector("#audio-path-dialog-bg > div > div.dialog-title > h3").innerText = "Choose audio file path";
 	document.getElementById("audio-path-dialog-bg").classList.remove("hidden");
+});
+
+
+document.getElementById("submit-transcript").addEventListener("click", () => {
+	//ipcRenderer.send("getCurrentModel");
+	document.querySelector("#transcript-path-dialog-bg > div > div.dialog-button > button.secondary").style.display = "";
+	document.querySelector("#transcript-path-dialog-bg > div > div.dialog-title > h3").innerText = "Submit latest transcript to model";
+	document.getElementById("transcript-path-dialog-bg").classList.remove("hidden");
 });
 
 ipcRenderer.send("getParams");
