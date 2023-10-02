@@ -120,8 +120,8 @@ const schema = {
 	},
 	supportsAVX2: {
 		default: "undefined"
-	}, 
-	lastTranscriptionJob : {
+	},
+	lastTranscriptionJob: {
 		default: "undefined"
 	}
 };
@@ -169,17 +169,25 @@ ipcMain.on("checkAudioPath", (_event, { data }) => {
 	}
 });
 
-const AWS = require('aws-sdk');
-AWS.config.update({region:'us-west-1'});
+// Import needed AWS libraries
+const
+	{
+		S3Client, GetObjectCommand, PutObjectCommand
+	} = require("@aws-sdk/client-s3"),
+	{
+		Transcribe: TranscribeService
+	} = require("@aws-sdk/client-transcribe");
+//const region = "us-west-1";
 
-// Create an S3 object
-const s3 = new AWS.S3();
+// Create an S3Client object
+const s3 = new S3Client();
+
+// Create a TrascribeServive object
+const transcribeService = new TranscribeService();
 
 // Define your S3 bucket names where the audio is stored
 const sourceBucketName = 'js-audio-files';
 const targetBucketName = 'js-aws-transcribe-outputs';
-
-const transcribeService = new AWS.TranscribeService();
 
 ipcMain.on("processAudioFile", (_event, { data }) => {
 	console.log(data)
@@ -198,88 +206,98 @@ ipcMain.on("processAudioFile", (_event, { data }) => {
 
 // Function to upload the MP3 file to the source S3 bucket
 function uploadFileAndSubmitTranscriptJob(bucket, key, content) {
-  
+
 	// Upload the MP3 file to the source S3 bucket
-	s3.putObject(
-	  {
-		Bucket: bucket,
-		Key: key,
-		Body: content,
-	  },
-	  (err, data) => {
-		if (err) {
-		  console.error('Error uploading MP3 file:', err);
-		} else {
-		  console.log('MP3 file uploaded successfully:', data);
-		  const sourceUri = `s3://${sourceBucketName}/${key}`;
-		  const timestamp = Date.now();
-		  const transcriptionJobName = `${key}-transcription-job-${timestamp}`;
-		  submitTranscriptionJob(transcriptionJobName, sourceUri);
-		}
-	  }
-	);
- }
+	s3.send(
+		new PutObjectCommand(
+			{
+				Bucket: bucket,
+				Key: key,
+				Body: content,
+			}),
+		(err, data) => {
+			if (err) {
+				console.error('Error uploading MP3 file:', err);
+			} else {
+				console.log('MP3 file uploaded successfully:', data);
+				const sourceUri = `s3://${sourceBucketName}/${key}`;
+				const timestamp = Date.now();
+				const transcriptionJobName = `${key}-transcription-job-${timestamp}`;
+				submitTranscriptionJob(transcriptionJobName, sourceUri);
+			}
+		});
+}
 
 
-  // Function to submit the transcription job
+// Function to submit the transcription job
 function submitTranscriptionJob(transcriptionJobName, sourceUri) {
-  
+
 	const params = {
-	  TranscriptionJobName: transcriptionJobName,
-	  LanguageCode: 'en-US', // Adjust language code as needed
-	  Media: { MediaFileUri: sourceUri },
-	  OutputBucketName: targetBucketName,
+		TranscriptionJobName: transcriptionJobName,
+		LanguageCode: 'en-US', // Adjust language code as needed
+		Media: { MediaFileUri: sourceUri },
+		OutputBucketName: targetBucketName,
 	};
-  
+
 	// Start the transcription job
 	transcribeService.startTranscriptionJob(params, (err, data) => {
-	  if (err) {
-		console.error('Error starting transcription job:', err);
-	  } else {
-		console.log('Transcription job started successfully:', data);
-		store.set("lastTranscriptionJob", transcriptionJobName);
-	  }
+		if (err) {
+			console.error('Error starting transcription job:', err);
+		} else {
+			console.log('Transcription job started successfully:', data);
+			store.set("lastTranscriptionJob", transcriptionJobName);
+		}
 	});
-  }
+}
 
 ipcMain.on("checkTranscriptionJob", () => {
-		jobName = store.get("lastTranscriptionJob");
-		transcribeService.getTranscriptionJob({ TranscriptionJobName: jobName }, (err, data) => {
-			if (err) {
-			  console.error('Error getting transcription job status:', err);
-			} else {
-			  const { TranscriptionJobStatus, TranscriptionJobName, Transcript } = data.TranscriptionJob;
-		
-			  if (TranscriptionJobStatus === 'COMPLETED') {
+	jobName = store.get("lastTranscriptionJob");
+	transcribeService.getTranscriptionJob({ TranscriptionJobName: jobName }, async (err, data) => {
+		if (err) {
+			console.error('Error getting transcription job status:', err);
+		} else {
+			const { TranscriptionJobStatus, TranscriptionJobName, Transcript } = data.TranscriptionJob;
+
+			if (TranscriptionJobStatus === 'COMPLETED') {
 				console.log(`Transcription job ${TranscriptionJobName} completed.`);
 				const transcriptFileUri = Transcript.TranscriptFileUri;
 				const transcriptBucket = transcriptFileUri.split('/')[3];
-  				const transcriptKey = transcriptFileUri.split('/').slice(4).join('/');
+				const transcriptKey = transcriptFileUri.split('/').slice(4).join('/');
 
-  				s3.getObject({ Bucket: transcriptBucket, Key: transcriptKey }, (err, data) => {
-					if (err) {
-						console.error('Error fetching transcript:', err);
-					} else {
-					transc = JSON.parse(data.Body.toString()).results.transcripts[0].transcript.toString();
-					win.webContents.send("transcriptionJobStatus", { data: transc });
-					}
+				const streamToString = (stream) =>
+					new Promise((resolve, reject) => {
+						const chunks = [];
+						stream.on("data", (chunk) => chunks.push(chunk));
+						stream.on("error", reject);
+						stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+					});
 
-  				});
+				const { Body } = await s3.send(
+					new GetObjectCommand(
+						{
+							Bucket: transcriptBucket,
+							Key: transcriptKey
+						})
+				);
 
-			  } else if (TranscriptionJobStatus === 'IN_PROGRESS') {
+				const bodyContents = await streamToString(Body);
+				transcr = JSON.parse(bodyContents).results.transcripts[0].transcript.toString()
+				win.webContents.send("transcriptionJobStatus", { data: transcr });
+
+			} else if (TranscriptionJobStatus === 'IN_PROGRESS') {
 				console.log(`Transcription job ${TranscriptionJobName} is still in progress`);
 				win.webContents.send("transcriptionJobStatus", {
 					data: "in_progress"
 				});
-			  } else if (TranscriptionJobStatus === 'FAILED' || TranscriptionJobStatus === 'CANCELED') {
+			} else if (TranscriptionJobStatus === 'FAILED' || TranscriptionJobStatus === 'CANCELED') {
 				console.error(`Transcription job ${TranscriptionJobName} failed or was canceled.`);
 				win.webContents.send("transcriptionJobStatus", {
 					data: "failed_canceled"
 				});
-			  }
 			}
-		  });
-		});
+		}
+	});
+});
 
 
 // DUCKDUCKGO SEARCH FUNCTION
