@@ -78,7 +78,7 @@ ipcRenderer.on("transcriptionJobStatus", (_event, { data }) => {
 		document.querySelector("#transcript-path-dialog > p.error-text").style.display = "none";
 		document.querySelector("#transcript-path-dialog > p.completed-text").style.display= "block";
 		document.querySelector("#transcript-path-dialog > p.in-progress-text").style.display = "none";
-		document.getElementById("input").value = "Summarize the following audio transcription: " + data
+		document.getElementById("input").value = "Can you please write a summary of the following audio transcription? You should first briefly describe what is happening in the transcription and who is speaking in 1-2 sentences. Then you should summarize the content of the transcription. The summary of the content should be as short as possible while still getting the main ideas across.\nHere is the transcription:\n" + data
 		document.getElementById("transcript-path-dialog-bg").classList.add("hidden");
 	}
 });
