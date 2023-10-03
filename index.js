@@ -170,14 +170,9 @@ ipcMain.on("checkAudioPath", (_event, { data }) => {
 });
 
 // Import needed AWS libraries
-const
-	{
-		S3Client, GetObjectCommand, PutObjectCommand
-	} = require("@aws-sdk/client-s3"),
-	{
-		Transcribe: TranscribeService
-	} = require("@aws-sdk/client-transcribe");
-//const region = "us-west-1";
+const { S3Client, GetObjectCommand, PutObjectCommand } = require("@aws-sdk/client-s3");
+const { Transcribe: TranscribeService } = require("@aws-sdk/client-transcribe");
+
 
 // Create an S3Client object
 const s3 = new S3Client();
@@ -185,7 +180,7 @@ const s3 = new S3Client();
 // Create a TrascribeServive object
 const transcribeService = new TranscribeService();
 
-// Define your S3 bucket names where the audio is stored
+// Define your S3 bucket names where the audio files and output transcriptions are stored
 const sourceBucketName = 'js-audio-files';
 const targetBucketName = 'js-aws-transcribe-outputs';
 
@@ -539,7 +534,7 @@ ipcMain.on("webAccess", (_event, value) => {
 
 ipcMain.on("restart", restart);
 
-process.on("unhandledRejection", () => {});
-process.on("uncaughtException", () => {});
-process.on("uncaughtExceptionMonitor", () => {});
-process.on("multipleResolves", () => {});
+process.on("unhandledRejection", () => { });
+process.on("uncaughtException", () => { });
+process.on("uncaughtExceptionMonitor", () => { });
+process.on("multipleResolves", () => { });
